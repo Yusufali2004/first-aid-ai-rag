@@ -1,6 +1,5 @@
 import os
 import streamlit as st
-from dotenv import load_dotenv
 
 # LangChain Imports
 from langchain_groq import ChatGroq
@@ -14,16 +13,22 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
-# Load env
-load_dotenv()
 
-# UI
+# UI Setup
 st.set_page_config(page_title="First-Aid Assistant", page_icon="🩺")
 st.title("🩺 First-Aid AI Assistant")
-st.write("Ask about symptoms and get immediate first-aid steps.")
+st.caption("Instant first-aid guidance powered by AI")
 
-# ⚠️ REMOVE CACHE (important for now)
+
+# Setup RAG
 def setup_rag():
+
+    # 🔑 Get API key from Streamlit Secrets
+    try:
+        GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    except:
+        st.error("❌ GROQ_API_KEY not found. Add it in Streamlit Secrets.")
+        st.stop()
 
     # 1. Embeddings
     embeddings = HuggingFaceEmbeddings(
@@ -32,7 +37,7 @@ def setup_rag():
 
     # 2. LLM
     llm = ChatGroq(
-        api_key=os.getenv("GROQ_API_KEY"),
+        api_key=GROQ_API_KEY,
         model="llama-3.3-70b-versatile"
     )
 
@@ -46,12 +51,12 @@ def setup_rag():
 
     # 4. Split
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
+        chunk_size=400,   # 🔥 safer for deployment memory
         chunk_overlap=100
     )
     chunks = splitter.split_documents(documents)
 
-    # 5. Vector DB (SAFE persistent version)
+    # 5. Vector DB (persistent)
     vector_db = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
@@ -91,7 +96,7 @@ Context:
     return rag_chain
 
 
-# Initialize safely
+# Initialize
 try:
     rag_chain = setup_rag()
 except Exception as e:
@@ -99,7 +104,7 @@ except Exception as e:
     st.stop()
 
 
-# Query enhancer
+# Query Enhancer
 def enhance_query(user_input):
     mapping = {
         "cut": "Cuts and Bleeding",
@@ -117,7 +122,7 @@ def enhance_query(user_input):
     return user_input
 
 
-# UI input
+# Input UI
 user_input = st.text_input("Describe symptom or injury:")
 
 if st.button("Get First Aid"):
