@@ -1,77 +1,66 @@
-import os
 import streamlit as st
-
-# LangChain Imports
 from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.document_loaders import PyPDFDirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
+from pypdf import PdfReader
 
-# Fixed imports
-from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-
-
-# UI Setup
+# UI
 st.set_page_config(page_title="First-Aid Assistant", page_icon="🩺")
 st.title("🩺 First-Aid AI Assistant")
-st.caption("Instant first-aid guidance powered by AI")
+st.caption("Fast, lightweight, deployment-safe version")
 
+# Load API key
+try:
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    st.error("Add GROQ_API_KEY in Streamlit secrets")
+    st.stop()
 
-# Setup RAG
-def setup_rag():
+# Load LLM
+llm = ChatGroq(
+    api_key=GROQ_API_KEY,
+    model="llama-3.3-70b-versatile"
+)
 
-    # 🔑 Get API key from Streamlit Secrets
-    try:
-        GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-    except:
-        st.error("❌ GROQ_API_KEY not found. Add it in Streamlit Secrets.")
-        st.stop()
+# Load PDF (lightweight)
+@st.cache_data
+def load_pdf():
+    reader = PdfReader("first_aid_manual.pdf")
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text()
+    return text
 
-    # 1. Embeddings
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
+pdf_text = load_pdf()
 
-    # 2. LLM
-    llm = ChatGroq(
-        api_key=GROQ_API_KEY,
-        model="llama-3.3-70b-versatile"
-    )
+# Smart keyword mapping
+def get_relevant_context(query):
+    query = query.lower()
 
-    # 3. Load PDF
-    if not os.path.exists("first_aid_manual.pdf"):
-        st.error("❌ first_aid_manual.pdf not found in project folder")
-        st.stop()
+    if "cut" in query or "bleeding" in query:
+        return "Cuts and Bleeding: Apply pressure, clean wound, protect, seek help if needed."
 
-    loader = PyPDFDirectoryLoader(".")
-    documents = loader.load()
+    elif "burn" in query:
+        return "Thermal Burns: Cool under water, remove jewelry, do not pop blisters, cover loosely."
 
-    # 4. Split
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=400,   # 🔥 safer for deployment memory
-        chunk_overlap=100
-    )
-    chunks = splitter.split_documents(documents)
+    elif "choking" in query:
+        return "Choking: Perform Heimlich maneuver, repeat until object removed."
 
-    # 5. Vector DB (persistent)
-    vector_db = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory="./chroma_db"
-    )
+    elif "heat" in query:
+        return "Heat Exhaustion: Move to shade, hydrate, cool skin, monitor condition."
 
-    retriever = vector_db.as_retriever(search_kwargs={"k": 2})
+    elif "sprain" in query:
+        return "Sprains: Rest, ice, compression, elevation."
 
-    # 6. Prompt
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a First-Aid Assistant.
+    else:
+        return None
 
-Identify the condition and give clear steps.
+# Prompt
+prompt = ChatPromptTemplate.from_messages([
+    ("system", """You are a First-Aid Assistant.
 
-FORMAT STRICTLY:
+Use the given context to answer.
+
+FORMAT:
 Symptom:
 <symptom>
 
@@ -80,66 +69,34 @@ Steps:
 2. ...
 3. ...
 
-If not found, say:
+If not found:
 "This condition is not available in the guide."
-
-Context:
-{context}
 """),
-        ("human", "{input}")
-    ])
+    ("human", "Question: {input}\nContext: {context}")
+])
 
-    # 7. Chain
-    combine_docs_chain = create_stuff_documents_chain(llm, prompt)
-    rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
+chain = prompt | llm
 
-    return rag_chain
-
-
-# Initialize
-try:
-    rag_chain = setup_rag()
-except Exception as e:
-    st.error(f"Initialization Error: {e}")
-    st.stop()
-
-
-# Query Enhancer
-def enhance_query(user_input):
-    mapping = {
-        "cut": "Cuts and Bleeding",
-        "bleeding": "Cuts and Bleeding",
-        "burn": "Thermal Burns",
-        "choking": "Choking Adults Heimlich Maneuver",
-        "heat": "Heat Exhaustion",
-        "sprain": "Sprains and Strains"
-    }
-
-    for key in mapping:
-        if key in user_input.lower():
-            return mapping[key]
-
-    return user_input
-
-
-# Input UI
+# UI Input
 user_input = st.text_input("Describe symptom or injury:")
 
 if st.button("Get First Aid"):
 
     if not user_input.strip():
-        st.warning("Please enter a symptom.")
+        st.warning("Enter a symptom")
     else:
-        query = enhance_query(user_input)
+        context = get_relevant_context(user_input)
 
-        try:
+        if context is None:
+            st.write("This condition is not available in the guide.")
+        else:
             with st.spinner("Analyzing..."):
-                response = rag_chain.invoke({"input": query})
+                response = chain.invoke({
+                    "input": user_input,
+                    "context": context
+                })
 
             st.subheader("🧾 First-Aid Instructions")
-            st.write(response["answer"])
+            st.write(response.content)
 
-        except Exception as e:
-            st.error(f"❌ Error while processing: {e}")
-
-        st.caption("⚠️ This is AI-generated advice. Not a substitute for professional medical help.")
+    st.caption("⚠️ AI-generated advice. Not a substitute for professional help.")
