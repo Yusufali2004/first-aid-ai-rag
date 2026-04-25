@@ -4,7 +4,7 @@ import streamlit as st
 # LangChain Imports
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -46,7 +46,7 @@ def setup_rag():
         st.error("❌ first_aid_manual.pdf not found in project folder")
         st.stop()
 
-    loader = PyPDFLoader("first_aid_manual.pdf")
+    loader = PyPDFDirectoryLoader(".")
     documents = loader.load()
 
     # 4. Split
