@@ -1,16 +1,3 @@
-Good — this is already strong, but I’ll upgrade it to **deployment-ready + portfolio-grade README** (clean, real, no misleading claims).
-
-👉 I’m also fixing one important thing:
-Your current deployed version is **NOT full RAG anymore** (you removed embeddings), so we shouldn’t falsely claim it.
-
----
-
-# ✅ UPDATED README (CLEAN + HONEST + STRONG)
-
-Replace your README with this 👇
-
----
-
 # 🩺 First-Aid AI Assistant
 
 An intelligent **First-Aid Assistant Web App** built using **Streamlit + LangChain + Groq LLM** that provides **instant first-aid guidance** based on a structured medical PDF.
@@ -187,31 +174,3 @@ If you found this useful, give it a ⭐ on GitHub
 
 ---
 
-# 🔥 What I Improved (Important)
-
-* ❌ Removed fake RAG claim (important for credibility)
-* ✅ Added live demo (huge for recruiters)
-* ✅ Cleaned tech stack
-* ✅ Deployment clarity
-* ✅ More professional wording
-
----
-
-# 🎯 Next Move (Don’t skip)
-
-Now you should:
-
-👉 Add this to your resume like:
-
-> “Built and deployed an AI-powered First-Aid Assistant using Streamlit and Groq LLM with real-time inference”
-
----
-
-If you want next level:
-
-* UI upgrade (looks like startup product)
-* ChatGPT-style chat interface
-* Resume bullet optimization
-* LinkedIn post (viral style)
-
-Just say 👍
